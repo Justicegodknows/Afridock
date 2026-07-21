@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  progress-tracker:
+    name: progress.md updated
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check progress.md is updated alongside code changes
+        run: |
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+          changed_files="$(git diff --name-only "$base_sha" "$head_sha")"
+
+          code_changed="$(echo "$changed_files" | grep -E '^(apps|packages|infra)/' || true)"
+          progress_changed="$(echo "$changed_files" | grep -xF 'progress.md' || true)"
+
+          if [ -n "$code_changed" ] && [ -z "$progress_changed" ]; then
+            echo "::error::This PR changes code under apps/, packages/, or infra/ but does not update progress.md. See progress.md's 'How to update this file' section."
+            echo "Changed code paths:"
+            echo "$code_changed" | sed 's/^/  - /'
+            exit 1
+          fi
+
+          echo "OK: progress.md is in sync with code changes (or no code changed)."
+
+  api:
+    name: API — lint, type-check, test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pipx install poetry==1.8.3
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --with dev
+
+      - name: Ruff
+        run: poetry run ruff check .
+
+      - name: Black
+        run: poetry run black --check .
+
+      - name: Mypy
+        run: poetry run mypy src
+
+      - name: Pytest
+        run: poetry run pytest --cov=afridock_api --cov-report=term-missing
+
+  web:
+    name: Web — lint, type-check, test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check + build
+        run: npm run build
+
+      - name: Test
+        run: npm test -- --run
+
+  security:
+    name: Security scans
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks (secret scan)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build API image
+        run: docker build --target production -t afridock-api:ci ./apps/api
+
+      - name: Trivy scan — API image
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: afridock-api:ci
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Build web image
+        run: docker build --target production -t afridock-web:ci ./apps/web
+
+      - name: Trivy scan — web image
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: afridock-web:ci
+          severity: CRITICAL,HIGH
+          exit-code: "1"

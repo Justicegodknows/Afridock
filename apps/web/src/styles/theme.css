@@ -1,0 +1,106 @@
+/*
+ * Design tokens as CSS custom properties — the "Classical" editorial theme
+ * (serif headings, warm cream/gold palette) is the default, ported from the
+ * AfricaAI Platform design mockup. A `[data-theme="dark"]` override sits
+ * alongside it so a dark mode can be added later purely by flipping the
+ * `data-theme` attribute on <html> — no component rewrite required, since
+ * every component consumes these tokens (via tailwind.config.js) rather
+ * than hardcoded colors. See src/hooks/useTheme.ts to toggle at runtime.
+ */
+
+:root {
+  --color-bg: #f3f2f2;
+  --color-surface: #eae9e9;
+  --color-text: #201f1d;
+  --color-accent: #b68235;
+  --color-accent-2: #ac803e;
+  --color-divider: color-mix(in srgb, #201f1d 16%, transparent);
+
+  --color-neutral-100: #f8f4f4;
+  --color-neutral-200: #eae7e7;
+  --color-neutral-300: #d7d3d3;
+  --color-neutral-400: #bab6b6;
+  --color-neutral-500: #9b9797;
+  --color-neutral-600: #7d7979;
+  --color-neutral-700: #605d5d;
+  --color-neutral-800: #444141;
+  --color-neutral-900: #2d2b2b;
+
+  --color-accent-100: #fff3e4;
+  --color-accent-200: #ffe3bf;
+  --color-accent-300: #facb8d;
+  --color-accent-400: #e1ad66;
+  --color-accent-500: #c28d41;
+  --color-accent-600: #a06f24;
+  --color-accent-700: #7d5411;
+  --color-accent-800: #5a3b0a;
+  --color-accent-900: #3a270d;
+
+  --font-heading: "Cormorant Garamond", ui-serif, Georgia, serif;
+  --font-heading-weight: 600;
+  --font-body: "Lora", ui-serif, Georgia, serif;
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 7px;
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2d2b2b 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #2d2b2b 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2d2b2b 22%, transparent);
+
+  /*
+   * Precomputed muted-text tokens rather than Tailwind's `text-x/NN`
+   * opacity modifiers — those only work when a color is defined in
+   * `<alpha-value>` RGB-channel form, which our hex-based tokens above
+   * aren't. Redeclared per theme block (not left to cross-block var()
+   * resolution) — a chained color-mix defined once on :root and only
+   * overridden implicitly by the dark block's --color-text produced a
+   * washed-out, low-contrast result in practice, so each theme now states
+   * its own muted values explicitly rather than relying on that chaining.
+   */
+  --color-text-muted: color-mix(in srgb, var(--color-text) 60%, transparent);
+  --color-text-subtle: color-mix(in srgb, var(--color-text) 45%, transparent);
+  --color-hover-overlay: color-mix(in srgb, var(--color-text) 5%, transparent);
+}
+
+/*
+ * Repurposes the app's original dark palette onto the same token names, so
+ * the swap is proven to work end to end rather than just plumbed. Not
+ * activated anywhere yet — see useTheme.ts.
+ */
+:root[data-theme="dark"] {
+  --color-bg: #0b1120;
+  --color-surface: #1e293b;
+  --color-text: #f1f5f9;
+  --color-accent: #10b981;
+  --color-accent-2: #34d399;
+  --color-divider: color-mix(in srgb, #f1f5f9 14%, transparent);
+
+  --color-neutral-100: #f8fafc;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+
+  --color-accent-100: #d1fae5;
+  --color-accent-200: #a7f3d0;
+  --color-accent-300: #6ee7b7;
+  --color-accent-400: #34d399;
+  --color-accent-500: #10b981;
+  --color-accent-600: #059669;
+  --color-accent-700: #047857;
+  --color-accent-800: #065f46;
+  --color-accent-900: #064e3b;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 3px 10px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+
+  --color-text-muted: color-mix(in srgb, var(--color-text) 60%, transparent);
+  --color-text-subtle: color-mix(in srgb, var(--color-text) 45%, transparent);
+  --color-hover-overlay: color-mix(in srgb, var(--color-text) 8%, transparent);
+}

@@ -1,0 +1,56 @@
+# Static model profile registry (§2.4 of the execution plan).
+# Maps Afridock-facing model names to LiteLLM model strings + pricing.
+# Per-organization overrides (custom fallback chain, self-hosted endpoint
+# URL) live in the model_profile_override table, not here.
+
+profiles:
+  llama-3.1-8b-instruct:
+    provider: huggingface
+    litellm_model: huggingface/meta-llama/Meta-Llama-3.1-8B-Instruct
+    input_cost_per_1k_tokens: 0.0
+    output_cost_per_1k_tokens: 0.0
+    default_params:
+      max_tokens: 1024
+      temperature: 0.7
+
+  llama-3.1-70b-instruct:
+    provider: huggingface
+    litellm_model: huggingface/meta-llama/Meta-Llama-3.1-70B-Instruct
+    input_cost_per_1k_tokens: 0.0
+    output_cost_per_1k_tokens: 0.0
+    default_params:
+      max_tokens: 1024
+      temperature: 0.7
+
+  mixtral-8x7b-instruct:
+    provider: vllm
+    litellm_model: openai/mixtral-8x7b-instruct
+    input_cost_per_1k_tokens: 0.0
+    output_cost_per_1k_tokens: 0.0
+    default_params:
+      max_tokens: 1024
+      temperature: 0.7
+
+  claude-fallback:
+    provider: anthropic
+    litellm_model: anthropic/claude-sonnet-4-5
+    input_cost_per_1k_tokens: 0.003
+    output_cost_per_1k_tokens: 0.015
+    default_params:
+      max_tokens: 1024
+
+  gpt-fallback:
+    provider: openai
+    litellm_model: openai/gpt-4o
+    input_cost_per_1k_tokens: 0.0025
+    output_cost_per_1k_tokens: 0.01
+    default_params:
+      max_tokens: 1024
+
+# Default escalation order when no organization override exists. Matches the
+# plan's E2 "provider failure triggers fallback" scenario: self-hosted/HF
+# open-weight models first, commercial fallback last.
+default_chain:
+  - llama-3.1-8b-instruct
+  - mixtral-8x7b-instruct
+  - claude-fallback

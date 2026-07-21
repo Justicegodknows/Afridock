@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Enforces the progress.md contract: any commit touching apps/, packages/,
+# or infra/ must also update progress.md in the same commit.
+# See progress.md's "How to update this file" section.
+#
+# Activate with: git config core.hooksPath .githooks
+set -euo pipefail
+
+staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+if [ -z "$staged" ]; then
+  exit 0
+fi
+
+code_changed="$(echo "$staged" | grep -E '^(apps|packages|infra)/' || true)"
+progress_changed="$(echo "$staged" | grep -xF 'progress.md' || true)"
+
+if [ -n "$code_changed" ] && [ -z "$progress_changed" ]; then
+  echo "ERROR: this commit changes code under apps/, packages/, or infra/ but does not update progress.md." >&2
+  echo "" >&2
+  echo "Changed code paths:" >&2
+  echo "$code_changed" | sed 's/^/  - /' >&2
+  echo "" >&2
+  echo "Update progress.md (Completed / In progress / Next up / Decisions log), stage it," >&2
+  echo "and retry. Use 'git commit --no-verify' only if this genuinely doesn't warrant a" >&2
+  echo "progress.md update (e.g. formatting-only, config scaffolding with no story impact)." >&2
+  exit 1
+fi
+
+exit 0
