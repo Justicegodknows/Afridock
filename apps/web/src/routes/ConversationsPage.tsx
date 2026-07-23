@@ -39,7 +39,7 @@ export function ConversationsPage() {
         {conversations?.map((conversation) => (
           <Link
             key={conversation.id}
-            to="/chat"
+            to={`/chat/${conversation.id}`}
             className="flex items-center justify-between gap-4 py-3 hover:bg-hover-overlay"
           >
             <div className="min-w-0">

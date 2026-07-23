@@ -36,7 +36,8 @@ def test_profile_fields_populated() -> None:
 
 def test_registry_is_reusable_from_scratch(tmp_path) -> None:
     custom_yaml = tmp_path / "profiles.yaml"
-    custom_yaml.write_text("""
+    custom_yaml.write_text(
+        """
         profiles:
           test-model:
             provider: test
@@ -45,7 +46,8 @@ def test_registry_is_reusable_from_scratch(tmp_path) -> None:
             output_cost_per_1k_tokens: 0.0
         default_chain:
           - test-model
-        """)
+        """
+    )
 
     registry = ModelProfileRegistry.from_yaml(custom_yaml)
 

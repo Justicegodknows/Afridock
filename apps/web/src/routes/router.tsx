@@ -1,19 +1,29 @@
 import { createBrowserRouter } from "react-router-dom";
 
 import { AppShell } from "../components/layout/AppShell";
+import { AuthGuard } from "../components/auth/AuthGuard";
 import { ChatPage } from "./ChatPage";
 import { ConversationsPage } from "./ConversationsPage";
+import { LoginPage } from "./LoginPage";
 import { PlaceholderPage } from "./PlaceholderPage";
+import { SignupPage } from "./SignupPage";
 import { TeamPage } from "./TeamPage";
 import { WorkspacePage } from "./WorkspacePage";
 
 export const router = createBrowserRouter([
+  { path: "/login", element: <LoginPage /> },
+  { path: "/signup", element: <SignupPage /> },
   {
     path: "/",
-    element: <AppShell />,
+    element: (
+      <AuthGuard>
+        <AppShell />
+      </AuthGuard>
+    ),
     children: [
       { index: true, element: <ChatPage /> },
       { path: "chat", element: <ChatPage /> },
+      { path: "chat/:conversationId", element: <ChatPage /> },
       { path: "conversations", element: <ConversationsPage /> },
       {
         path: "projects",

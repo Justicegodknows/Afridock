@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 
 import { useTheme } from "../../hooks/useTheme";
+import { logout } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
 import { WorkspaceSwitcher } from "../members/WorkspaceSwitcher";
 import { ApiStatusIndicator } from "./ApiStatusIndicator";
@@ -59,7 +60,22 @@ const DEMO_WORKSPACES = [{ id: "demo", name: "Afridock Demo Org" }];
 
 export function Sidebar() {
   const role = useAuthStore((state) => state.role);
+  const user = useAuthStore((state) => state.user);
+  const clear = useAuthStore((state) => state.clear);
   const { theme, toggleTheme } = useTheme();
+
+  const initials = user?.email?.slice(0, 2).toUpperCase() ?? "?";
+
+  const handleLogout = () => {
+    logout()
+      .catch(() => {
+        /* cookie may already be gone (e.g. it expired) — clear local state regardless */
+      })
+      .finally(() => {
+        clear();
+        window.location.href = "/login";
+      });
+  };
 
   return (
     <aside className="flex h-full flex-col overflow-hidden border-r border-divider bg-surface">
@@ -113,11 +129,13 @@ export function Sidebar() {
 
       <div className="flex items-center gap-2.5 border-t border-divider px-5 py-3.5">
         <div className="grid h-7 w-7 flex-none place-items-center rounded-full border border-divider font-heading text-xs text-accent">
-          YO
+          {initials}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate font-heading text-[13px] font-semibold leading-none">You</div>
-          <div className="text-[11px] capitalize text-text-subtle">Workspace {role}</div>
+          <div className="truncate font-heading text-[13px] font-semibold leading-none">
+            {user?.email ?? "…"}
+          </div>
+          <div className="text-[11px] capitalize text-text-subtle">{role}</div>
         </div>
         <button
           type="button"
@@ -126,6 +144,14 @@ export function Sidebar() {
           className="rounded-md border border-divider px-2 py-1 text-[11px] text-text-muted hover:text-text"
         >
           {theme === "dark" ? "Light" : "Dark"}
+        </button>
+        <button
+          type="button"
+          onClick={handleLogout}
+          aria-label="Log out"
+          className="rounded-md border border-divider px-2 py-1 text-[11px] text-text-muted hover:text-text"
+        >
+          Log out
         </button>
       </div>
       <div className="border-t border-divider px-5 py-2">

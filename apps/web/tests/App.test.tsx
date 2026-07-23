@@ -9,12 +9,26 @@ describe("App", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the Afridock heading", () => {
+  it("renders the Afridock heading once the session resolves", async () => {
+    // AuthGuard calls GET /users/me on mount (hooks/useAuthBootstrap.ts) —
+    // stub a valid session so the protected shell (and its "Afridock"
+    // heading) actually renders instead of staying on the loading/redirect
+    // state.
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ status: "ok" }),
+        status: 200,
+        json: async () => ({
+          id: "11111111-1111-1111-1111-111111111111",
+          email: "demo@example.com",
+          is_active: true,
+          is_superuser: false,
+          is_verified: true,
+          org_id: "22222222-2222-2222-2222-222222222222",
+          role: "admin",
+          display_name: null,
+        }),
       }),
     );
 
@@ -25,6 +39,6 @@ describe("App", () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText("Afridock")).toBeInTheDocument();
+    expect(await screen.findByText("Afridock")).toBeInTheDocument();
   });
 });

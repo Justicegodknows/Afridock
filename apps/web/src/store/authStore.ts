@@ -1,20 +1,29 @@
 import { create } from "zustand";
 
+import type { CurrentUser } from "../services/auth";
 import type { Role } from "../lib/permissions";
 
+export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
+
 type AuthState = {
+  status: AuthStatus;
+  user: CurrentUser | null;
+  /** Mirrors `user.role` — kept as a top-level field since Sidebar and
+   * useHasCapability already read `state.role` directly (E1 only needed to
+   * change how this store is populated, not every consumer). */
   role: Role;
-  setRole: (role: Role) => void;
+  setUser: (user: CurrentUser) => void;
+  clear: () => void;
 };
 
 /**
- * Placeholder until Phase 1 E1 (auth & organizations) lands — a real store
- * will populate `role` from a session/JWT instead of this hardcoded default.
- * Kept as its own store now so components depend on `useAuthStore`/
- * `useHasCapability` rather than a hardcoded role, so E1 only has to change
- * this one file.
+ * Populated from a real session (see hooks/useAuthBootstrap.ts, which calls
+ * GET /users/me on app load) instead of E1's hardcoded `"admin"` placeholder.
  */
 export const useAuthStore = create<AuthState>((set) => ({
-  role: "admin",
-  setRole: (role) => set({ role }),
+  status: "loading",
+  user: null,
+  role: "viewer",
+  setUser: (user) => set({ user, role: user.role, status: "authenticated" }),
+  clear: () => set({ user: null, role: "viewer", status: "unauthenticated" }),
 }));

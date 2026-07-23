@@ -1,5 +1,4 @@
 import pytest
-
 from afridock_api.inference.errors import NoAvailableModelError
 from afridock_api.inference.fallback import FallbackChain, InMemoryCooldownStore
 

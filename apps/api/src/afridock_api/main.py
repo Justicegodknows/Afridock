@@ -1,7 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 
-from afridock_api.api.routes import health
+from afridock_api.api.routes import auth, conversations, health, organizations
 from afridock_api.config import get_settings
 from afridock_api.logging import configure_logging
 
@@ -18,4 +22,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Per-IP request throttling (Redis-backed so it's shared across API
+# processes), applied API-wide with a generous default rather than only on
+# /auth — slowapi's pre-built routers (fastapi-users) can't be decorated
+# per-route like hand-written endpoints, and a single sensible default is
+# simpler than threading path-specific limits through library routers.
+limiter = Limiter(
+    key_func=get_remote_address, storage_uri=settings.redis_url, default_limits=["60/minute"]
+)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+app.add_middleware(SlowAPIMiddleware)
+
 app.include_router(health.router)
+app.include_router(auth.router)
+app.include_router(organizations.router)
+app.include_router(conversations.router)

@@ -14,6 +14,12 @@ org_id/user_id columns are plain UUID with no FK constraint — the
 organizations/users tables land with Phase 1 E1. Add those FKs in a follow-up
 migration once E1 exists; the RLS policies below already assume org_id is
 populated correctly by the application layer in the meantime.
+
+`revision` is "0001", not this file's full descriptive name — Alembic's
+default `alembic_version.version_num` column is VARCHAR(32), and the first
+live migration run (Phase 1 E1) found that the originally-descriptive
+revision string overflowed it. Filenames stay descriptive; revision ids
+stay short.
 """
 
 from collections.abc import Sequence
@@ -22,7 +28,7 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0001_conversations_messages_providers"
+revision: str = "0001"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -200,7 +206,8 @@ def upgrade() -> None:
 
     # Conversation.search_tsv aggregates its messages' content, so it can't
     # be a per-row generated column — kept in sync with a trigger instead.
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION afridock_refresh_conversation_search_tsv()
         RETURNS trigger AS $$
         BEGIN
@@ -214,13 +221,16 @@ def upgrade() -> None:
           RETURN NEW;
         END;
         $$ LANGUAGE plpgsql;
-        """)
-    op.execute("""
+        """
+    )
+    op.execute(
+        """
         CREATE TRIGGER messages_refresh_conversation_search_tsv
         AFTER INSERT OR UPDATE OF content ON messages
         FOR EACH ROW
         EXECUTE FUNCTION afridock_refresh_conversation_search_tsv();
-        """)
+        """
+    )
 
     # Multi-tenant isolation (plan principle: hard isolation at the data
     # layer). `true` as current_setting's second arg returns NULL instead of
@@ -234,10 +244,12 @@ def upgrade() -> None:
         "inference_usage_logs",
     ):
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
-        op.execute(f"""
+        op.execute(
+            f"""
             CREATE POLICY {table}_tenant_isolation ON {table}
             USING (org_id = current_setting('app.org_id', true)::uuid)
-            """)
+            """
+        )
 
 
 def downgrade() -> None:

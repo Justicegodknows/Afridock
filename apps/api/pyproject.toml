@@ -34,8 +34,9 @@ pyyaml = "^6.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "8.2.*"
 pytest-asyncio = "0.23.*"
-pytest-bdd = "7.0.*"
+pytest-bdd = "8.1.*"
 factory-boy = "^3.3"
+types-PyYAML = "^6.0"
 ruff = "^0.5"
 black = "^24.4"
 mypy = "^1.10"
@@ -50,6 +51,18 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's Depends()/Query()/etc. are meant to be called in argument
+# defaults — that's the framework's own dependency-injection idiom, not the
+# mutable-default-argument bug B008 exists to catch.
+extend-immutable-calls = [
+  "fastapi.Depends",
+  "fastapi.Query",
+  "fastapi.Path",
+  "fastapi.Body",
+  "afridock_api.auth.dependencies.require_role",
+]
 
 [tool.black]
 line-length = 100

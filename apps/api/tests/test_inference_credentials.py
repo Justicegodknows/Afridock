@@ -1,5 +1,4 @@
 import pytest
-
 from afridock_api.inference.credentials import (
     CredentialDecryptionError,
     decrypt_credential,

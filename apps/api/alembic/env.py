@@ -1,19 +1,19 @@
 import asyncio
 from logging.config import fileConfig
 
-from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
-
 import afridock_api.db.models  # noqa: F401  (registers mapped classes on Base.metadata)
 from afridock_api.config import get_settings
 from afridock_api.db.base import Base
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import async_engine_from_config
+
 from alembic import context
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+config.set_main_option("sqlalchemy.url", get_settings().migrations_database_url)
 
 target_metadata = Base.metadata
 

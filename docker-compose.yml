@@ -38,7 +38,9 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://afridock:afridock@postgres:5432/afridock}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://afridock_app:${APP_DB_PASSWORD:-afridock_app_local_dev}@postgres:5432/afridock}
+      MIGRATIONS_DATABASE_URL: ${MIGRATIONS_DATABASE_URL:-postgresql+asyncpg://afridock:afridock@postgres:5432/afridock}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-afridock_app_local_dev}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     ports:
       - "8000:8000"
