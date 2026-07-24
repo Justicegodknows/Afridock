@@ -16,7 +16,7 @@ Three deterministic checks back this policy; none rely on an agent choosing to c
 
 **Phase: 0 — Validation & Foundations (complete) → Phase 1 — Core MVP: Chat & Inference (E1–E4 complete)**
 
-Last updated: 2026-07-23
+Last updated: 2026-07-24 (branding rename + logo assets; dev-tunnel CORS/cookie config)
 
 ## Completed
 
@@ -78,6 +78,17 @@ Full vertical slice: sign up → land in an isolated org → chat (streaming, wi
 
 _(nothing — claim work here before starting it)_
 
+### Branding — product rename & logo assets (2026-07-23)
+- [x] Renamed product from "Afridock" → "Afrikdock" across all frontend display strings (`Sidebar.tsx`, `AppShell.tsx`, `ChatInput.tsx`, `LoginPage.tsx`, `SignupPage.tsx`, `router.tsx`, `index.html`) — codebase/package name (`afridock_api`, repo name, `.env` vars, etc.) intentionally left as-is; this is a UI copy change, not a symbol rename.
+- [x] Added real logo assets: `afrikdock_logo_primary.{png,svg}` (source), `apps/web/public/logo-icon.svg` (square mark, used as favicon + in-app), `apps/web/public/logo-lockup.svg` (full wordmark); removed the old placeholder `afridock_logo_light.png`.
+- [x] Sidebar and auth pages now render the SVG logo icon instead of the placeholder "A" letterbox.
+
+### Dev-tunnel access (cross-site CORS + cookie config) (2026-07-24)
+- [x] Made cookie `SameSite`/`Secure` env-overridable (`API_COOKIE_SAMESITE`, `API_COOKIE_SECURE` in `config.py`/`auth/backend.py`) — default behavior (derive from `API_ENV`) unchanged for normal local/deployed use.
+- [x] `.env` now also forwards port 8000 (API) through the same VS Code dev tunnel as port 5173 (web), with both origins in `API_CORS_ORIGINS`, `VITE_API_BASE_URL` pointed at the tunneled API, and `API_COOKIE_SAMESITE=none`/`API_COOKIE_SECURE=true` so the session cookie survives the cross-site hop — verified end-to-end (register → verify → login → `/users/me`) directly against the tunnel URLs.
+- [x] Tunnel port visibility must be **Public**, not Private — Private tunnels redirect (302, no CORS headers) to a GitHub OAuth page, which breaks CORS preflight for any `fetch` caller.
+- Note: `docker compose restart` does **not** reload `.env` (env vars are baked in at container creation); `docker compose up -d` is required to pick up `.env` changes.
+
 | Epic / story | Owner (agent/session) | Started | Notes |
 |---|---|---|---|
 
@@ -114,6 +125,8 @@ Record any decision that deviates from or refines the execution plan.
 | 2026-07-23 | Created non-superuser `afridock_app` Postgres role for the running API; migrations still run as the superuser `afridock` | Postgres superusers unconditionally bypass RLS regardless of ENABLE/FORCE — the app must never query through the migrations connection, or the plan's "hard isolation via RLS" principle is a no-op (see "RLS bypass bug" above) |
 | 2026-07-23 | Conversation history is personal (scoped to `org_id` AND `user_id`), not team-shared | Matches typical chat-product UX (ChatGPT-style); still trivially satisfies E4's "scoped to the user's organization" requirement as a subset. Revisit if team-shared history is ever wanted — would need a product decision, not just a query change |
 | 2026-07-23 | Assistant-reply persistence in `send_message` runs in a `finally` block wrapped in `anyio.CancelScope(shield=True)`, and uses its own `org_scoped_transaction` rather than `Depends(get_org_session)` | Two independent, real bugs found via Playwright (not curl): (1) FastAPI tears down yield-dependencies as soon as the handler returns the `StreamingResponse`, before the body streams — a dependency session would already be closed when the generator runs; (2) `SlowAPIMiddleware`'s `BaseHTTPMiddleware` cancels the whole request's anyio scope on client disconnect, which would cancel new awaits in a bare `finally` block too, without the explicit shield |
+| 2026-07-23 | Product renamed "Afridock" → "Afrikdock" in all UI copy only (not code symbols/package/repo names) | User's explicit choice — the supplied logo's wordmark reads "Afrikdock"; user asked to make the app name match rather than treat the logo text as wrong |
+| 2026-07-24 | Cookie `SameSite`/`Secure` made env-overridable rather than hardcoded to the `api_env != "local"` derivation | Needed to support a VS Code dev-tunnel frontend, which is cross-site from the API — `SameSite=Lax` silently drops the cookie on cross-site fetch/XHR, and `SameSite=None` requires `Secure`, which in turn requires the response that sets it to be HTTPS (so the API's own tunnel had to also be Public, not Private — Private tunnels 302-redirect to a GitHub OAuth page with no CORS headers, breaking preflight) |
 
 ## Known issues / blockers
 

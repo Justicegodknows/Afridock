@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -9,6 +10,22 @@ class Settings(BaseSettings):
     api_env: str = "local"
     api_secret_key: str = "change-me-in-every-environment"
     api_cors_origins: str = "http://localhost:5173"
+
+    # Cookie SameSite/Secure normally derive from api_env (Lax + non-Secure
+    # on plain-http local dev, Secure everywhere else) — see cookie_secure
+    # below. Override only when the frontend is genuinely cross-site from
+    # the API (e.g. a dev tunnel), which also requires the API itself to be
+    # served over HTTPS: browsers drop `Secure` cookies set over plain HTTP,
+    # and SameSite=None cookies must be Secure. Flipping this alone with the
+    # API still on http://localhost will not make cross-site auth work.
+    api_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+    api_cookie_secure: bool | None = None
+
+    @property
+    def cookie_secure(self) -> bool:
+        if self.api_cookie_secure is not None:
+            return self.api_cookie_secure
+        return self.api_env != "local"
 
     # App runtime connection — a non-superuser role (afridock_app, created by
     # migration 0002) so Postgres RLS policies actually apply. Postgres

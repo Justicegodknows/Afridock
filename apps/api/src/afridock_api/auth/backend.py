@@ -18,9 +18,11 @@ cookie_transport = CookieTransport(
     cookie_max_age=_SESSION_LIFETIME_SECONDS,
     # Secure requires HTTPS; local dev serves plain http://localhost. Every
     # deployed environment sets API_ENV to something other than "local",
-    # which is exactly when the cookie must be Secure.
-    cookie_secure=settings.api_env != "local",
-    cookie_samesite="lax",
+    # which is exactly when the cookie must be Secure. Both are
+    # env-overridable (API_COOKIE_SECURE / API_COOKIE_SAMESITE) for the rare
+    # case the frontend is cross-site from the API — see config.py.
+    cookie_secure=settings.cookie_secure,
+    cookie_samesite=settings.api_cookie_samesite,
 )
 
 

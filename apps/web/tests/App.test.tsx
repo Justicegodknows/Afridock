@@ -9,9 +9,9 @@ describe("App", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the Afridock heading once the session resolves", async () => {
+  it("renders the Afrikdock heading once the session resolves", async () => {
     // AuthGuard calls GET /users/me on mount (hooks/useAuthBootstrap.ts) —
-    // stub a valid session so the protected shell (and its "Afridock"
+    // stub a valid session so the protected shell (and its "Afrikdock"
     // heading) actually renders instead of staying on the loading/redirect
     // state.
     vi.stubGlobal(
@@ -39,6 +39,6 @@ describe("App", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByText("Afridock")).toBeInTheDocument();
+    expect(await screen.findByText("Afrikdock")).toBeInTheDocument();
   });
 });

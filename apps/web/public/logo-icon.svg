@@ -1,0 +1,37 @@
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="terra" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E17A4C"/>
+      <stop offset="1" stop-color="#AF4527"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="20" y="20" width="360" height="360" rx="84" fill="#24282C"/>
+  <g transform="translate(96,74)">
+    <path fill="url(#terra)" d="
+      M40 20 C60 12 92 10 128 12 C150 13 168 10 176 20 C182 28 176 40 184 48
+      C196 44 214 52 214 66 C214 78 200 82 194 92 C188 102 196 116 186 124
+      C178 130 170 122 164 130 C158 138 164 152 158 164 C152 178 148 196 140 214
+      C133 230 128 250 118 256 C110 261 104 252 102 242 C100 230 106 216 100 206
+      C93 194 80 194 74 182 C67 168 74 152 66 140 C58 128 44 128 38 116
+      C31 102 40 88 34 76 C28 64 14 62 14 48 C14 34 28 25 40 20 Z"/>
+  </g>
+  <g stroke="#F4E3D7" stroke-width="3.4" stroke-opacity="0.9" fill="none" stroke-linecap="round">
+    <line x1="150" y1="128" x2="212" y2="120"/>
+    <line x1="212" y1="120" x2="238" y2="176"/>
+    <line x1="150" y1="128" x2="182" y2="188"/>
+    <line x1="182" y1="188" x2="238" y2="176"/>
+    <line x1="182" y1="188" x2="172" y2="250"/>
+    <line x1="238" y1="176" x2="228" y2="232"/>
+    <line x1="172" y1="250" x2="228" y2="232"/>
+  </g>
+  <g fill="#F7EBE2">
+    <circle cx="150" cy="128" r="12"/><circle cx="212" cy="120" r="10"/>
+    <circle cx="238" cy="176" r="12"/><circle cx="182" cy="188" r="14"/>
+    <circle cx="228" cy="232" r="10"/><circle cx="172" cy="250" r="12"/>
+  </g>
+  <g fill="#AF4527">
+    <circle cx="150" cy="128" r="5"/><circle cx="238" cy="176" r="5"/>
+    <circle cx="182" cy="188" r="6"/><circle cx="172" cy="250" r="5"/>
+  </g>
+</svg>

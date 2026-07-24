@@ -21,7 +21,7 @@ const PAGE_META: PageMeta[] = [
 
 function resolvePageMeta(pathname: string): { kicker: string; title: string } {
   const entry = PAGE_META.find((candidate) => candidate.match(pathname));
-  return entry ? { kicker: entry.kicker, title: entry.title } : { kicker: "Afridock", title: "" };
+  return entry ? { kicker: entry.kicker, title: entry.title } : { kicker: "Afrikdock", title: "" };
 }
 
 /**

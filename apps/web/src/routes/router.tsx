@@ -72,7 +72,7 @@ export const router = createBrowserRouter([
           <PlaceholderPage
             phase="Phase 2"
             epic="E7 / E8 / E9 — Slack, WhatsApp, Google Sheets"
-            description="Connect Afridock to Slack, WhatsApp Business, and Google Sheets."
+            description="Connect Afrikdock to Slack, WhatsApp Business, and Google Sheets."
           />
         ),
       },

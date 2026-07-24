@@ -56,7 +56,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-const DEMO_WORKSPACES = [{ id: "demo", name: "Afridock Demo Org" }];
+const DEMO_WORKSPACES = [{ id: "demo", name: "Afrikdock Demo Org" }];
 
 export function Sidebar() {
   const role = useAuthStore((state) => state.role);
@@ -81,11 +81,9 @@ export function Sidebar() {
     <aside className="flex h-full flex-col overflow-hidden border-r border-divider bg-surface">
       <div className="border-b border-divider px-5 pb-4 pt-5">
         <div className="flex items-center gap-2.5">
-          <div className="grid h-[30px] w-[30px] place-items-center rounded-sm border border-accent font-heading text-lg font-semibold text-accent">
-            A
-          </div>
+          <img src="/logo-icon.svg" alt="" className="h-[30px] w-[30px] rounded-sm" />
           <div>
-            <div className="font-heading text-[19px] font-semibold leading-none">Afridock</div>
+            <div className="font-heading text-[19px] font-semibold leading-none">Afrikdock</div>
             <div className="text-[10px] uppercase tracking-[0.14em] text-accent">
               Enterprise Platform
             </div>

@@ -37,7 +37,7 @@ export function ChatInput({ disabled, onSubmit }: ChatInputProps) {
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          placeholder="Message Afridock…"
+          placeholder="Message Afrikdock…"
           rows={1}
           className="min-h-[52px] max-h-[140px] flex-1 resize-none rounded-md border border-divider bg-bg px-3 py-2.5 text-sm text-text placeholder:text-text-subtle disabled:opacity-50"
         />

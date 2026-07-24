@@ -54,7 +54,8 @@ export function LoginPage() {
     <div className="flex h-screen items-center justify-center bg-bg px-4">
       <div className="w-full max-w-sm rounded-md border border-divider bg-surface p-6 shadow-md">
         <div className="mb-6 text-center">
-          <div className="font-heading text-2xl font-semibold">Afridock</div>
+          <img src="/logo-icon.svg" alt="Afrikdock" className="mx-auto h-12 w-12 rounded-md" />
+          <div className="mt-2 font-heading text-2xl font-semibold">Afrikdock</div>
           <div className="text-sm text-text-muted">Sign in to your workspace</div>
         </div>
         <form onSubmit={onSubmit} className="space-y-4">
