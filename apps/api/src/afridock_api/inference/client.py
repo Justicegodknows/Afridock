@@ -33,6 +33,20 @@ _STUB_RESPONSE = (
     "ANTHROPIC_API_KEY in .env to enable real inference; no code changes are needed."
 )
 
+# Providers with no cloud credential to configure — CLAUDE.md's #1
+# constraint (low-cost AI via open-source models) means these are the
+# preferred, real default path, not a fallback-of-last-resort: a self-hosted
+# candidate is always usable regardless of which (if any) cloud API keys are
+# set in this environment. `nvidia_nim` covers a self-hosted NVIDIA NIM
+# instance (e.g. a DGX Spark box) — your own hardware, zero marginal
+# per-token cost, same treatment as Ollama/vLLM.
+SELF_HOSTED_PROVIDERS = {"ollama", "vllm", "nvidia_nim"}
+
+# Providers whose endpoint is per-deployment (not a fixed Docker Compose
+# service hostname like Ollama's) — resolved from settings at call time
+# rather than hardcoded in profiles.yaml.
+_DYNAMIC_API_BASE_PROVIDERS = {"nvidia_nim": "nvidia_nim_base_url"}
+
 
 def _api_key_for(provider: str) -> str | None:
     settings = get_settings()
@@ -40,11 +54,43 @@ def _api_key_for(provider: str) -> str | None:
         "huggingface": settings.huggingface_api_token,
         "openai": settings.openai_api_key,
         "anthropic": settings.anthropic_api_key,
+        "nvidia_nim": settings.nvidia_nim_api_key,
     }.get(provider) or None
 
 
+def _api_base_for(profile: ModelProfile) -> str | None:
+    """Resolves the endpoint to pass as litellm's `api_base`: static profiles
+    (e.g. Ollama's fixed `http://ollama:11434`) use `profile.api_base` as-is;
+    per-deployment self-hosted endpoints (e.g. a DGX Spark's NIM instance)
+    have no `api_base` in profiles.yaml and are resolved from settings
+    instead, since that address varies by environment/machine.
+    """
+    if profile.api_base is not None:
+        return profile.api_base
+    settings_field = _DYNAMIC_API_BASE_PROVIDERS.get(profile.provider)
+    if settings_field is None:
+        return None
+    return getattr(get_settings(), settings_field) or None
+
+
+def _is_configured(profile: ModelProfile) -> bool:
+    """Whether this candidate can actually be attempted for real: a
+    self-hosted profile needs a real endpoint (`api_base`) — someone must
+    have actually stood up that Ollama/vLLM/NIM instance, not just declared
+    the profile — otherwise it's as unconfigured as a cloud profile with no
+    key. Skipping unconfigured candidates without a network call matters:
+    without this, an unconfigured cloud profile would attempt a real call
+    with no credentials (e.g. hitting a provider's real endpoint and
+    surfacing whatever error type that provider happens to return, which may
+    not be one of the normalized exceptions below).
+    """
+    if profile.provider in SELF_HOSTED_PROVIDERS:
+        return _api_base_for(profile) is not None
+    return _api_key_for(profile.provider) is not None
+
+
 def _chain_has_credentials(candidates: list[ModelProfile]) -> bool:
-    return any(_api_key_for(profile.provider) is not None for profile in candidates)
+    return any(_is_configured(profile) for profile in candidates)
 
 
 class InferenceResult(BaseModel):
@@ -102,12 +148,15 @@ class InferenceClient:
 
         last_error: Exception | None = None
         for profile in candidates:
+            if not _is_configured(profile):
+                continue
             started = time.monotonic()
             try:
                 response = await litellm.acompletion(
                     model=profile.litellm_model,
                     messages=messages,
                     api_key=_api_key_for(profile.provider),
+                    api_base=_api_base_for(profile),
                     **profile.default_params,
                 )
             except litellm.exceptions.RateLimitError as exc:
@@ -125,7 +174,13 @@ class InferenceClient:
 
             latency_ms = int((time.monotonic() - started) * 1000)
             usage = response.usage
-            cost_usd = litellm.completion_cost(completion_response=response)  # type: ignore[attr-defined]
+            # litellm.completion_cost returns None for models it has no
+            # pricing map entry for (e.g. self-hosted Ollama/vLLM) — those
+            # are $0 by definition (CLAUDE.md's #1 constraint), not unknown.
+            cost_usd = (
+                litellm.completion_cost(completion_response=response)  # type: ignore[attr-defined]
+                or 0.0
+            )
             return InferenceResult(
                 content=response.choices[0].message.content or "",
                 model_profile=profile.name,
@@ -163,11 +218,14 @@ class InferenceClient:
 
         last_error: Exception | None = None
         for profile in candidates:
+            if not _is_configured(profile):
+                continue
             try:
                 response = await litellm.acompletion(
                     model=profile.litellm_model,
                     messages=messages,
                     api_key=_api_key_for(profile.provider),
+                    api_base=_api_base_for(profile),
                     stream=True,
                     **profile.default_params,
                 )

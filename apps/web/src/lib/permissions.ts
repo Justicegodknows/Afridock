@@ -6,6 +6,8 @@ export type Capability =
   | "members.assign_role"
   | "billing.view"
   | "api_keys.manage"
+  | "org_settings.manage"
+  | "audit.view"
   | "chat.send";
 
 /**
@@ -23,6 +25,8 @@ const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     "members.assign_role",
     "billing.view",
     "api_keys.manage",
+    "org_settings.manage",
+    "audit.view",
     "chat.send",
   ],
   user: ["chat.send"],

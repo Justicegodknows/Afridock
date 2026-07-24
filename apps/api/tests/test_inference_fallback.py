@@ -4,15 +4,39 @@ from afridock_api.inference.fallback import FallbackChain, InMemoryCooldownStore
 
 
 def test_candidates_returns_all_profiles_when_none_in_cooldown() -> None:
-    chain = FallbackChain(["llama-3.1-8b-instruct", "mixtral-8x7b-instruct", "claude-fallback"])
+    chain = FallbackChain(["llama-3.1-8b-instruct", "mixtral-8x7b-instruct"])
 
     candidates = chain.candidates()
 
-    assert [c.name for c in candidates] == [
-        "llama-3.1-8b-instruct",
-        "mixtral-8x7b-instruct",
-        "claude-fallback",
-    ]
+    assert [c.name for c in candidates] == ["llama-3.1-8b-instruct", "mixtral-8x7b-instruct"]
+
+
+def test_commercial_profile_excluded_by_default() -> None:
+    """CLAUDE.md's #1 constraint: a commercial profile is never a candidate
+    unless the organization has explicitly opted in."""
+    chain = FallbackChain(["llama-3.1-8b-instruct", "claude-fallback"])
+
+    candidates = chain.candidates()
+
+    assert [c.name for c in candidates] == ["llama-3.1-8b-instruct"]
+
+
+def test_commercial_profile_included_when_org_opted_in() -> None:
+    chain = FallbackChain(
+        ["llama-3.1-8b-instruct", "claude-fallback"],
+        allow_commercial=True,
+    )
+
+    candidates = chain.candidates()
+
+    assert [c.name for c in candidates] == ["llama-3.1-8b-instruct", "claude-fallback"]
+
+
+def test_all_commercial_and_disallowed_raises_no_available_model_error() -> None:
+    chain = FallbackChain(["claude-fallback"])
+
+    with pytest.raises(NoAvailableModelError):
+        chain.candidates()
 
 
 def test_cooldown_removes_profile_from_candidates() -> None:

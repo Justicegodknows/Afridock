@@ -5,7 +5,6 @@ authorization (only Admins may invite/update/remove).
 """
 
 import httpx
-from afridock_api.main import app
 
 from tests.conftest import (
     fetch_user_row,
@@ -13,10 +12,9 @@ from tests.conftest import (
     signup_verify_login,
     unique_email,
 )
-
-
-def _second_client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
+from tests.conftest import (
+    second_client as _second_client,
+)
 
 
 async def test_invite_then_reset_password_then_login(async_client: httpx.AsyncClient) -> None:

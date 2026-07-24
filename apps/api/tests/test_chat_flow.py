@@ -1,12 +1,25 @@
 """E2 (inference orchestrator wiring) / E3 (chat streaming + persistence) /
 E4 (history & search) against the real endpoint, real Postgres, and the
-inference stub-fallback path (no LLM credentials are configured in CI or a
-fresh clone — see inference/client.py).
+inference stub-fallback path.
+
+This deliberately forces stub mode (`SELF_HOSTED_PROVIDERS = set()`) rather
+than relying on whatever the environment's actual state is: a real Ollama
+container is genuinely reachable in local dev/CI now (see CLAUDE.md's #1
+constraint), so without this override the assistant's reply would be a real,
+non-deterministic Llama completion instead of the canned stub text this
+test asserts on — this test is about the SSE envelope/persistence plumbing,
+not about which model answered.
 """
 
 import httpx
+import pytest
 
 from tests.conftest import signup_verify_login
+
+
+@pytest.fixture(autouse=True)
+def _force_stub_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("afridock_api.inference.client.SELF_HOSTED_PROVIDERS", set())
 
 
 async def test_send_message_streams_and_persists_the_conversation(

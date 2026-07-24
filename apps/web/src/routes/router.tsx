@@ -2,12 +2,14 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { AppShell } from "../components/layout/AppShell";
 import { AuthGuard } from "../components/auth/AuthGuard";
+import { AuditPage } from "./AuditPage";
 import { ChatPage } from "./ChatPage";
 import { ConversationsPage } from "./ConversationsPage";
 import { LoginPage } from "./LoginPage";
 import { PlaceholderPage } from "./PlaceholderPage";
 import { SignupPage } from "./SignupPage";
 import { TeamPage } from "./TeamPage";
+import { UsagePage } from "./UsagePage";
 import { WorkspacePage } from "./WorkspacePage";
 
 export const router = createBrowserRouter([
@@ -45,26 +47,8 @@ export const router = createBrowserRouter([
           />
         ),
       },
-      {
-        path: "usage",
-        element: (
-          <PlaceholderPage
-            phase="Phase 2"
-            epic="E6 / E10 — Cost Attribution & Billing"
-            description="Token volume, spend, active users, and latency dashboards land here."
-          />
-        ),
-      },
-      {
-        path: "audit",
-        element: (
-          <PlaceholderPage
-            phase="Phase 2"
-            epic="E6 — Audit Logs & Cost Attribution"
-            description="An exportable, immutable record of who used what, when, and at what cost."
-          />
-        ),
-      },
+      { path: "usage", element: <UsagePage /> },
+      { path: "audit", element: <AuditPage /> },
       { path: "team", element: <TeamPage /> },
       {
         path: "integrations",

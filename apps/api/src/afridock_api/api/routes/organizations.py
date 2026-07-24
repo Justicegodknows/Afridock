@@ -6,9 +6,16 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from afridock_api.auth.dependencies import current_active_user, get_org_session, require_role
+from afridock_api.auth.dependencies import (
+    current_active_user,
+    get_org_id_via_cookie_or_api_key,
+    get_org_session,
+    get_org_session_via_cookie_or_api_key,
+    require_role,
+)
 from afridock_api.auth.manager import UserManager, get_user_manager
 from afridock_api.db.models.enums import UserRole
+from afridock_api.db.models.organization import Organization
 from afridock_api.db.models.user import User
 
 router = APIRouter(prefix="/organizations/current/members", tags=["organizations"])
@@ -49,10 +56,16 @@ def _to_member_out(user: User) -> MemberOut:
 
 @router.get("", response_model=list[MemberOut])
 async def list_members(
-    current_user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_org_session),
+    org_id: uuid.UUID = Depends(get_org_id_via_cookie_or_api_key),
+    session: AsyncSession = Depends(get_org_session_via_cookie_or_api_key),
 ) -> list[MemberOut]:
-    result = await session.execute(select(User).where(User.org_id == current_user.org_id))
+    """Reachable via cookie session (web app) or an org API key (plan E5's
+    "a request is made with that key... authorized only for that key's
+    organization" — see auth/dependencies.py). Every other route in this
+    file stays cookie/Admin-only; this one is read-only and already
+    org-scoped, so it's a safe first surface for machine access.
+    """
+    result = await session.execute(select(User).where(User.org_id == org_id))
     return [_to_member_out(user) for user in result.scalars().all()]
 
 
@@ -134,3 +147,47 @@ async def remove_member(
         )
     member = await _get_member_or_404(session, admin.org_id, member_id)
     await session.delete(member)
+
+
+settings_router = APIRouter(prefix="/organizations/current", tags=["organizations"])
+
+
+class OrganizationOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    allowCommercialFallback: bool
+
+
+class UpdateOrganizationSettingsRequest(BaseModel):
+    allow_commercial_fallback: bool
+
+
+@settings_router.get("", response_model=OrganizationOut)
+async def get_current_organization(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_org_session),
+) -> OrganizationOut:
+    org = await session.get(Organization, user.org_id)
+    assert org is not None  # the authenticated user's own org always exists
+    return OrganizationOut(
+        id=org.id, name=org.name, allowCommercialFallback=org.allow_commercial_fallback
+    )
+
+
+@settings_router.patch("/settings", response_model=OrganizationOut)
+async def update_current_organization_settings(
+    body: UpdateOrganizationSettingsRequest,
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+    session: AsyncSession = Depends(get_org_session),
+) -> OrganizationOut:
+    """Admin-only, deliberately: this is the org-level opt-in for real,
+    non-zero-cost commercial inference (CLAUDE.md's #1 constraint) — the
+    same trust boundary as billing settings, not a per-user preference.
+    """
+    org = await session.get(Organization, admin.org_id)
+    assert org is not None
+    org.allow_commercial_fallback = body.allow_commercial_fallback
+    await session.flush()
+    return OrganizationOut(
+        id=org.id, name=org.name, allowCommercialFallback=org.allow_commercial_fallback
+    )

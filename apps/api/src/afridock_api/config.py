@@ -54,6 +54,15 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     anthropic_api_key: str = ""
 
+    # Self-hosted NVIDIA NIM instance (e.g. a DGX Spark box running an
+    # OpenAI-compatible NIM microservice) — per-deployment network address,
+    # so unlike Ollama's fixed Docker Compose service name this can't be
+    # hardcoded in profiles.yaml; resolved dynamically in inference/client.py.
+    # Zero marginal per-token cost (your own hardware), so this is treated as
+    # self-hosted/free per CLAUDE.md's #1 constraint, not commercial.
+    nvidia_nim_api_key: str = ""
+    nvidia_nim_base_url: str = ""
+
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.api_cors_origins.split(",") if origin.strip()]

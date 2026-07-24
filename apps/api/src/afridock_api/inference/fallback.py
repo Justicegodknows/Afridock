@@ -52,20 +52,29 @@ class FallbackChain:
         profile_names: list[str],
         registry: ModelProfileRegistry | None = None,
         cooldown_store: CooldownStore | None = None,
+        allow_commercial: bool = False,
     ) -> None:
         self._profile_names = profile_names
         self._registry = registry or get_profile_registry()
         self._cooldown_store = cooldown_store or InMemoryCooldownStore()
+        # CLAUDE.md's #1 constraint: a commercial (non-zero marginal cost)
+        # profile is only ever a candidate if the organization has
+        # explicitly opted in (Organization.allow_commercial_fallback) — no
+        # org can be silently enrolled into a real per-token bill.
+        self._allow_commercial = allow_commercial
 
     def candidates(self) -> list[ModelProfile]:
+        all_profiles = [self._registry.get(name) for name in self._profile_names]
         available = [
-            self._registry.get(name)
-            for name in self._profile_names
-            if not self._cooldown_store.is_in_cooldown(name)
+            profile
+            for profile in all_profiles
+            if not self._cooldown_store.is_in_cooldown(profile.name)
+            and (self._allow_commercial or not profile.is_commercial)
         ]
         if not available:
             raise NoAvailableModelError(
-                f"all models in fallback chain are in cooldown: {self._profile_names}"
+                f"no model profiles available in {self._profile_names}: all are either in "
+                "cooldown, or commercial fallback is disabled for this organization"
             )
         return available
 

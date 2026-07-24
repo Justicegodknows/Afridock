@@ -1,9 +1,13 @@
-.PHONY: dev down logs api-shell web-shell test test-api test-web lint lint-api lint-web fmt migrate hooks-install
+.PHONY: dev down logs api-shell web-shell test test-api test-web lint lint-api lint-web fmt migrate hooks-install ollama-pull
 
-## Bring up the full local stack (Postgres, Redis, API, web) via Docker Compose
+## Bring up the full local stack (Postgres, Redis, Ollama, API, web) via Docker Compose
 dev:
 	@test -f .env || cp .env.example .env
 	docker compose up --build
+
+## Pull the default self-hosted Ollama model (idempotent; run once after `make dev` is up in another terminal — ~1.3GB download, cached in the ollama-data volume)
+ollama-pull:
+	docker compose exec -T ollama ollama pull llama3.2:1b
 
 ## Activate the versioned git hooks (progress.md enforcement) for this clone
 hooks-install:

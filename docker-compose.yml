@@ -29,6 +29,25 @@ services:
       timeout: 5s
       retries: 10
 
+  # Self-hosted, open-source inference (see CLAUDE.md's #1 architectural
+  # constraint: low-cost AI via open-source models). Runs a small
+  # open-weight model on CPU with zero API cost and no credentials — the
+  # real default inference path for local/self-hosted deployments, ahead of
+  # paid Hugging Face Inference API / commercial fallback. First run:
+  # `make ollama-pull` (one-time ~1.3GB download, cached in the named volume).
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
       context: ./apps/api
@@ -51,6 +70,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
 
   web:
     build:
@@ -70,3 +91,4 @@ services:
 
 volumes:
   postgres-data:
+  ollama-data:

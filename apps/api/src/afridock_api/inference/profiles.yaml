@@ -4,6 +4,36 @@
 # URL) live in the model_profile_override table, not here.
 
 profiles:
+  # Self-hosted NVIDIA NIM instance (e.g. a DGX Spark box) serving a full-size
+  # Llama 3.1 70B over an OpenAI-compatible API. `api_base` is intentionally
+  # omitted here (unlike Ollama's fixed Docker Compose hostname, a NIM box's
+  # address is per-deployment) — inference/client.py resolves it dynamically
+  # from NVIDIA_NIM_BASE_URL/NVIDIA_NIM_API_KEY. Zero marginal per-token cost
+  # since it's your own hardware, so this is first in the chain: bigger model,
+  # still free, still CLAUDE.md's #1 constraint.
+  llama-3.1-70b-nim:
+    provider: nvidia_nim
+    litellm_model: openai/meta/llama-3.1-70b-instruct
+    input_cost_per_1k_tokens: 0.0
+    output_cost_per_1k_tokens: 0.0
+    default_params:
+      max_tokens: 1024
+      temperature: 0.7
+
+  # Self-hosted via Docker Compose's `ollama` service (see docker-compose.yml
+  # + `make ollama-pull`) — genuinely free, no credentials, real inference.
+  # The concrete embodiment of CLAUDE.md's #1 constraint: this is the actual
+  # default path, not Hugging Face's (often paid/gated) Inference API.
+  llama-3.2-1b-instruct:
+    provider: ollama
+    litellm_model: ollama_chat/llama3.2:1b
+    api_base: http://ollama:11434
+    input_cost_per_1k_tokens: 0.0
+    output_cost_per_1k_tokens: 0.0
+    default_params:
+      max_tokens: 1024
+      temperature: 0.7
+
   llama-3.1-8b-instruct:
     provider: huggingface
     litellm_model: huggingface/meta-llama/Meta-Llama-3.1-8B-Instruct
@@ -22,6 +52,11 @@ profiles:
       max_tokens: 1024
       temperature: 0.7
 
+  # Self-hosted vLLM, same free/no-key treatment as Ollama (see
+  # inference/client.py's SELF_HOSTED_PROVIDERS) — but needs a real vLLM
+  # OpenAI-compatible endpoint URL (api_base) configured via a
+  # model_profile_override before it can actually serve traffic; unset here
+  # since no vLLM instance runs in this stack yet.
   mixtral-8x7b-instruct:
     provider: vllm
     litellm_model: openai/mixtral-8x7b-instruct
@@ -36,6 +71,7 @@ profiles:
     litellm_model: anthropic/claude-sonnet-4-5
     input_cost_per_1k_tokens: 0.003
     output_cost_per_1k_tokens: 0.015
+    is_commercial: true
     default_params:
       max_tokens: 1024
 
@@ -44,13 +80,18 @@ profiles:
     litellm_model: openai/gpt-4o
     input_cost_per_1k_tokens: 0.0025
     output_cost_per_1k_tokens: 0.01
+    is_commercial: true
     default_params:
       max_tokens: 1024
 
 # Default escalation order when no organization override exists. Matches the
-# plan's E2 "provider failure triggers fallback" scenario: self-hosted/HF
-# open-weight models first, commercial fallback last.
+# plan's E2 "provider failure triggers fallback" scenario: self-hosted models
+# first (Ollama, then HF open-weight, then vLLM), commercial fallback last —
+# and even reaching `claude-fallback` requires the organization to have
+# opted in via `allow_commercial_fallback` (see inference/fallback.py).
 default_chain:
+  - llama-3.1-70b-nim
+  - llama-3.2-1b-instruct
   - llama-3.1-8b-instruct
   - mixtral-8x7b-instruct
   - claude-fallback

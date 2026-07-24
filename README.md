@@ -20,10 +20,16 @@ cp .env.example .env   # first time only
 make dev
 ```
 
-This starts Postgres (with pgvector), Redis, the API, and the web app:
+This starts Postgres (with pgvector), Redis, Ollama (self-hosted, open-source inference), the API, and the web app:
 
 - API: http://localhost:8000 (health check at `/healthz`, docs at `/docs`)
 - Web: http://localhost:5173
+
+First time only, in another terminal once the stack is up, pull the default open-source model (see CLAUDE.md's low-cost-open-source-AI constraint — this is the real inference path, not a stub):
+
+```bash
+make ollama-pull   # one-time ~1.3GB download of llama3.2:1b, cached afterward
+```
 
 Other common commands:
 

@@ -1,10 +1,13 @@
 import { type ReactNode, useState } from "react";
 
+import { ApiKeysTable } from "../components/api-keys/ApiKeysTable";
+import { CreateApiKeyDialog } from "../components/api-keys/CreateApiKeyDialog";
 import { PageContainer } from "../components/layout/PageContainer";
 import { InviteMemberDialog } from "../components/members/InviteMemberDialog";
 import { MembersTable } from "../components/members/MembersTable";
 import { Card, CardBody, CardKicker } from "../components/ui/card";
 import { useHasCapability } from "../hooks/useHasCapability";
+import { useApiKeys } from "../services/apiKeys";
 import { useMembers } from "../services/members";
 
 const ROLE_CARDS = [
@@ -38,13 +41,30 @@ function TabButton({
 }
 
 function ApiKeysSection() {
+  const { data: apiKeys, isLoading, isError } = useApiKeys();
+  const canManage = useHasCapability("api_keys.manage");
+
+  if (!canManage) {
+    return (
+      <p className="text-sm text-text-muted">Only Admins can view and manage API keys.</p>
+    );
+  }
+
   return (
-    <Card className="max-w-[560px]">
-      <CardKicker>Phase 2</CardKicker>
-      <CardBody>
-        Org-scoped API key issuance and rotation land here with Phase 2 E5 (RBAC &amp; API keys).
-      </CardBody>
-    </Card>
+    <>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="font-heading text-xl">
+          API keys{apiKeys ? ` · ${apiKeys.length}` : ""}
+        </h3>
+        <CreateApiKeyDialog />
+      </div>
+      {isLoading && <p className="text-sm text-text-muted">Loading API keys…</p>}
+      {isError && <p className="text-sm text-red-600">Couldn&apos;t load API keys.</p>}
+      {apiKeys && apiKeys.length > 0 && <ApiKeysTable apiKeys={apiKeys} />}
+      {apiKeys && apiKeys.length === 0 && (
+        <p className="text-sm text-text-muted">No API keys yet.</p>
+      )}
+    </>
   );
 }
 

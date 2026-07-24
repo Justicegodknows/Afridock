@@ -5,7 +5,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
-from afridock_api.api.routes import auth, conversations, health, organizations
+from afridock_api.api.routes import api_keys, auth, conversations, health, organizations, usage
 from afridock_api.config import get_settings
 from afridock_api.logging import configure_logging
 
@@ -37,4 +37,7 @@ app.add_middleware(SlowAPIMiddleware)
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(organizations.router)
+app.include_router(organizations.settings_router)
+app.include_router(api_keys.router)
+app.include_router(usage.router)
 app.include_router(conversations.router)

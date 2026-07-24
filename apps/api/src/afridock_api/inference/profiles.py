@@ -23,6 +23,14 @@ class ModelProfile(BaseModel):
     input_cost_per_1k_tokens: float
     output_cost_per_1k_tokens: float
     default_params: dict[str, Any] = {}
+    # Self-hosted endpoint (e.g. Ollama's `http://ollama:11434`) — passed as
+    # litellm's `api_base`. None for hosted providers (HF/Anthropic/OpenAI),
+    # which resolve their own endpoint from the model string.
+    api_base: str | None = None
+    # Drives the org-level commercial-fallback gate (see CLAUDE.md's #1
+    # constraint and inference/fallback.py's FallbackChain): true only for
+    # non-zero-marginal-cost providers an org must explicitly opt into.
+    is_commercial: bool = False
 
 
 class ModelProfileRegistry:

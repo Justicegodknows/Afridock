@@ -32,9 +32,10 @@ make migrate   # alembic upgrade head
 ## Non-negotiable rules
 
 1. **Read progress.md first** (see above), claim your task there, update it when done.
-2. **Follow the phase order** — MoSCoW (M) items in the current phase before (S)/(C) items; never build later-phase features on missing foundations.
-3. **Tenant isolation**: any table or endpoint touching org data must enforce Postgres RLS + org-scoped auth, with cross-tenant access tests.
-4. **Provider-agnostic inference**: all model calls go through the LiteLLM orchestrator — never call a provider SDK directly from application code.
-5. **Two deployment targets**: features must work in managed SaaS *and* self-hosted Docker Compose unless explicitly scoped otherwise.
-6. **Definition of Done** (plan §3) applies to every story: ≥80% backend coverage, passing BDD scenarios, clean ruff/black/mypy/eslint, updated OpenAPI, structured logs/metrics on new endpoints.
-7. Conventional Commits; trunk-based development with short-lived branches.
+2. **Low-cost AI via open-source models is the #1 constraint** — it outranks every other rule below when they conflict. Default every model-routing/infra/pricing decision to free or self-hosted open-weight inference; never let a commercial provider (Claude/OpenAI) become reachable without an organization's explicit opt-in (`Organization.allow_commercial_fallback`, enforced in `inference/fallback.py`'s `FallbackChain`). Adding a new model, provider, or pricing path without checking this is a bug, not a style nit.
+3. **Follow the phase order** — MoSCoW (M) items in the current phase before (S)/(C) items; never build later-phase features on missing foundations.
+4. **Tenant isolation**: any table or endpoint touching org data must enforce Postgres RLS + org-scoped auth, with cross-tenant access tests.
+5. **Provider-agnostic inference**: all model calls go through the LiteLLM orchestrator — never call a provider SDK directly from application code.
+6. **Two deployment targets**: features must work in managed SaaS *and* self-hosted Docker Compose unless explicitly scoped otherwise.
+7. **Definition of Done** (plan §3) applies to every story: ≥80% backend coverage, passing BDD scenarios, clean ruff/black/mypy/eslint, updated OpenAPI, structured logs/metrics on new endpoints.
+8. Conventional Commits; trunk-based development with short-lived branches.

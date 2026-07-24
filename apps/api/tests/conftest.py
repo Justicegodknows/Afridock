@@ -12,6 +12,23 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _disable_rate_limiting() -> Iterator[None]:
+    """slowapi's global 60/minute-per-IP default (main.py) treats every
+    request in this suite as coming from the same IP (in-process ASGI
+    transport, no real network) — with enough tests hitting `/auth/*` in
+    quick succession, the suite starts rate-limiting *itself*, non-
+    deterministically depending on wall-clock timing against the 60s
+    window. Tests exercise real auth flows repeatedly by design; they
+    should never be throttled by a production safety limit meant for
+    external traffic."""
+    from afridock_api.main import limiter
+
+    limiter.enabled = False
+    yield
+    limiter.enabled = True
+
+
 @pytest.fixture(scope="session")
 def event_loop() -> Iterator[asyncio.AbstractEventLoop]:
     """One event loop for the whole test session, not pytest-asyncio's
@@ -120,3 +137,42 @@ async def signup_verify_login(
     assert login_response.status_code == 204, login_response.text
 
     return {**user, "email": email}
+
+
+def second_client() -> httpx.AsyncClient:
+    """A second, independent cookie jar/session against the same app —
+    for tests exercising a second user in the same org (invite flow) or a
+    cross-tenant user, alongside the primary `async_client` fixture."""
+    from afridock_api.main import app
+
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
+
+
+async def invite_and_login_as(
+    admin_client: httpx.AsyncClient, role: str, label: str
+) -> httpx.AsyncClient:
+    """Invites a new member at `role` into `admin_client`'s org, completes
+    the reset-password-as-invite-completion flow (see organizations.py),
+    and returns a freshly logged-in client for that member. Caller owns the
+    returned client's lifecycle (aclose())."""
+    email = unique_email(label)
+    invite_response = await admin_client.post(
+        "/organizations/current/members/invite", json={"emails": [email], "role": role}
+    )
+    assert invite_response.status_code == 200, invite_response.text
+
+    row = await fetch_user_row(email)
+    assert row is not None
+    password = f"{label}-strong-password-1"
+    reset_token = await mint_reset_password_token(row["id"], row["hashed_password"])
+    reset_response = await admin_client.post(
+        "/auth/reset-password", json={"token": reset_token, "password": password}
+    )
+    assert reset_response.status_code == 200, reset_response.text
+
+    member_client = second_client()
+    login_response = await member_client.post(
+        "/auth/cookie/login", data={"username": email, "password": password}
+    )
+    assert login_response.status_code == 204, login_response.text
+    return member_client

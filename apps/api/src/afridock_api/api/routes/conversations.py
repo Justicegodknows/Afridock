@@ -1,8 +1,11 @@
 import json
+import time
 import uuid
 from collections.abc import AsyncIterator
+from decimal import Decimal
 
 import anyio
+import litellm
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -10,16 +13,18 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from afridock_api.auth.dependencies import current_active_user, get_org_session
+from afridock_api.auth.dependencies import current_active_user, get_org_session, require_role
 from afridock_api.db.models.conversation import Conversation
-from afridock_api.db.models.enums import MessageRole, MessageStatus
+from afridock_api.db.models.enums import MessageRole, MessageStatus, UserRole
 from afridock_api.db.models.message import Message
+from afridock_api.db.models.organization import Organization
+from afridock_api.db.models.provider import InferenceUsageLog
 from afridock_api.db.models.user import User
 from afridock_api.db.session import org_scoped_transaction
 from afridock_api.inference.client import InferenceClient, StreamResult
 from afridock_api.inference.errors import InferenceError
 from afridock_api.inference.fallback import FallbackChain
-from afridock_api.inference.profiles import get_profile_registry
+from afridock_api.inference.profiles import ModelProfileRegistry, get_profile_registry
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["conversations"])
@@ -63,6 +68,22 @@ def _message_status_out(status_: MessageStatus) -> str:
     return "error" if status_ == MessageStatus.ERROR else "complete"
 
 
+def _estimated_cost_usd(
+    registry: ModelProfileRegistry, model_profile: str, prompt_tokens: int, completion_tokens: int
+) -> Decimal:
+    """CLAUDE.md's #1 constraint made visible: every open-source/self-hosted
+    profile prices to $0 here (see profiles.yaml), so the audit trail itself
+    proves the constraint rather than just asserting it — a real dollar
+    figure only ever appears for a commercial (opted-in) profile."""
+    if model_profile not in registry:
+        return Decimal("0")
+    profile = registry.get(model_profile)
+    cost = (prompt_tokens / 1000) * profile.input_cost_per_1k_tokens + (
+        completion_tokens / 1000
+    ) * profile.output_cost_per_1k_tokens
+    return Decimal(str(round(cost, 6)))
+
+
 async def _get_conversation_or_404(
     session: AsyncSession, user: User, conversation_id: uuid.UUID
 ) -> Conversation:
@@ -85,7 +106,7 @@ async def _get_conversation_or_404(
 )
 async def create_conversation(
     body: CreateConversationRequest,
-    user: User = Depends(current_active_user),
+    user: User = Depends(require_role(UserRole.ADMIN, UserRole.USER)),
     session: AsyncSession = Depends(get_org_session),
 ) -> CreateConversationResponse:
     registry = get_profile_registry()
@@ -195,7 +216,7 @@ async def list_messages(
 async def send_message(
     conversation_id: uuid.UUID,
     body: SendMessageRequest,
-    user: User = Depends(current_active_user),
+    user: User = Depends(require_role(UserRole.ADMIN, UserRole.USER)),
 ) -> StreamingResponse:
     """Deliberately does not use `Depends(get_org_session)`: FastAPI tears
     down `yield`-dependencies as soon as this function *returns* the
@@ -215,6 +236,8 @@ async def send_message(
 
     async with org_scoped_transaction(user.org_id) as session:
         conversation = await _get_conversation_or_404(session, user, conversation_id)
+        org = await session.get(Organization, user.org_id)
+        allow_commercial = bool(org.allow_commercial_fallback) if org else False
 
         if conversation.title is None:
             conversation.title = body.content[:_PREVIEW_LENGTH]
@@ -248,10 +271,14 @@ async def send_message(
     chain_profiles = [body.model_profile] + [
         name for name in registry.default_chain if name != body.model_profile
     ]
-    chain = FallbackChain(chain_profiles, registry)
+    chain = FallbackChain(chain_profiles, registry, allow_commercial=allow_commercial)
 
     async def persist_assistant_message(
-        content: str, model_profile: str | None, error: str | None
+        content: str,
+        model_profile: str | None,
+        litellm_model: str | None,
+        error: str | None,
+        latency_ms: int,
     ) -> None:
         # Shielded: SlowAPIMiddleware is a Starlette BaseHTTPMiddleware,
         # which runs this whole request in an anyio task group that
@@ -274,8 +301,31 @@ async def send_message(
                             error=error,
                         )
                     )
+                    session.add(
+                        InferenceUsageLog(
+                            org_id=user.org_id,
+                            user_id=user.id,
+                            request_id=str(uuid.uuid4()),
+                            model_profile=model_profile or "unknown",
+                            litellm_model=litellm_model or "unknown",
+                            latency_ms=latency_ms,
+                            status="error",
+                        )
+                    )
                 else:
                     assert model_profile is not None
+                    assert litellm_model is not None
+                    # Estimated, not provider-returned: the Gherkin says "an
+                    # estimated cost is computed" — exact usage isn't
+                    # available in the streaming path without provider-
+                    # specific stream_options support not every target here
+                    # (self-hosted Ollama/vLLM included) honors.
+                    prompt_tokens = litellm.token_counter(  # type: ignore[attr-defined]
+                        model=litellm_model, messages=llm_messages
+                    )
+                    completion_tokens = litellm.token_counter(  # type: ignore[attr-defined]
+                        model=litellm_model, text=content
+                    )
                     session.add(
                         Message(
                             org_id=user.org_id,
@@ -290,11 +340,29 @@ async def send_message(
                             model_id=model_profile,
                         )
                     )
+                    session.add(
+                        InferenceUsageLog(
+                            org_id=user.org_id,
+                            user_id=user.id,
+                            request_id=str(uuid.uuid4()),
+                            model_profile=model_profile,
+                            litellm_model=litellm_model,
+                            prompt_tokens=prompt_tokens,
+                            completion_tokens=completion_tokens,
+                            total_tokens=prompt_tokens + completion_tokens,
+                            cost_usd=_estimated_cost_usd(
+                                registry, model_profile, prompt_tokens, completion_tokens
+                            ),
+                            latency_ms=latency_ms,
+                            status="ok",
+                        )
+                    )
 
     async def event_stream() -> AsyncIterator[str]:
         result = StreamResult()
         content_parts: list[str] = []
         error_message: str | None = None
+        started_at = time.monotonic()
         # The assistant's reply is persisted in `finally`, not only after a
         # clean finish: if the client disconnects mid-stream (navigates
         # away, aborts the fetch), Starlette/uvicorn cancels this generator
@@ -310,8 +378,13 @@ async def send_message(
             error_message = str(exc)
             yield f"data: {json.dumps({'event': 'error', 'message': error_message})}\n\n"
         finally:
+            latency_ms = int((time.monotonic() - started_at) * 1000)
             await persist_assistant_message(
-                "".join(content_parts), result.model_profile, error_message
+                "".join(content_parts),
+                result.model_profile,
+                result.litellm_model,
+                error_message,
+                latency_ms,
             )
 
         if error_message is None:

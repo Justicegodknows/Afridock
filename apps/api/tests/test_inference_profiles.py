@@ -7,10 +7,20 @@ def test_default_registry_loads_expected_profiles() -> None:
     assert "llama-3.1-8b-instruct" in registry
     assert "claude-fallback" in registry
     assert registry.default_chain == [
+        "llama-3.1-70b-nim",
+        "llama-3.2-1b-instruct",
         "llama-3.1-8b-instruct",
         "mixtral-8x7b-instruct",
         "claude-fallback",
     ]
+    # CLAUDE.md's #1 constraint: self-hosted (your-own-hardware NIM box, then
+    # in-container Ollama) first, commercial last and marked is_commercial
+    # (gated by Organization.allow_commercial_fallback).
+    assert registry.get("llama-3.1-70b-nim").provider == "nvidia_nim"
+    assert registry.get("llama-3.1-70b-nim").is_commercial is False
+    assert registry.get("llama-3.2-1b-instruct").provider == "ollama"
+    assert registry.get("llama-3.2-1b-instruct").is_commercial is False
+    assert registry.get("claude-fallback").is_commercial is True
 
 
 def test_get_unknown_profile_raises_key_error() -> None:
