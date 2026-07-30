@@ -34,6 +34,26 @@ profiles:
       max_tokens: 1024
       temperature: 0.7
 
+  # NVIDIA's hosted API catalog (integrate.api.nvidia.com) — an
+  # OpenAI-compatible cloud endpoint NVIDIA runs itself, not your hardware
+  # (contrast with `llama-3.1-70b-nim` above). `api_base` is NVIDIA's fixed
+  # public endpoint (same for everyone), so unlike the DGX Spark profile it
+  # can be hardcoded here rather than resolved from settings; only the API
+  # key is per-deployment (NVIDIA_API_KEY). Priced $0 for consistency with
+  # this registry's Hugging-Face-hosted entries below (same "open-weight
+  # model via a hosted API" treatment), not a guarantee this stays free at
+  # any volume — see progress.md's decisions log.
+  llama-3.3-70b-nvidia:
+    provider: nvidia_cloud
+    litellm_model: openai/meta/llama-3.3-70b-instruct
+    api_base: https://integrate.api.nvidia.com/v1
+    input_cost_per_1k_tokens: 0.0
+    output_cost_per_1k_tokens: 0.0
+    default_params:
+      max_tokens: 1024
+      temperature: 0.2
+      top_p: 0.7
+
   llama-3.1-8b-instruct:
     provider: huggingface
     litellm_model: huggingface/meta-llama/Meta-Llama-3.1-8B-Instruct
@@ -92,6 +112,7 @@ profiles:
 default_chain:
   - llama-3.1-70b-nim
   - llama-3.2-1b-instruct
+  - llama-3.3-70b-nvidia
   - llama-3.1-8b-instruct
   - mixtral-8x7b-instruct
   - claude-fallback

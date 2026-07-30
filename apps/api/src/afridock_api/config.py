@@ -63,6 +63,15 @@ class Settings(BaseSettings):
     nvidia_nim_api_key: str = ""
     nvidia_nim_base_url: str = ""
 
+    # NVIDIA's *hosted* API catalog (https://integrate.api.nvidia.com/v1) —
+    # a distinct credential from the self-hosted NIM box above: this is
+    # NVIDIA's own paid cloud infrastructure serving open-weight models
+    # (e.g. meta/llama-3.3-70b-instruct), not your hardware. Priced $0 in
+    # profiles.yaml for consistency with this registry's existing
+    # Hugging-Face-hosted entries (same "open-weight model via a hosted API"
+    # treatment), not because it's guaranteed free at any volume.
+    nvidia_api_key: str = ""
+
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.api_cors_origins.split(",") if origin.strip()]

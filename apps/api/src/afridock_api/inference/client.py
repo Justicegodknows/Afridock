@@ -55,6 +55,7 @@ def _api_key_for(provider: str) -> str | None:
         "openai": settings.openai_api_key,
         "anthropic": settings.anthropic_api_key,
         "nvidia_nim": settings.nvidia_nim_api_key,
+        "nvidia_cloud": settings.nvidia_api_key,
     }.get(provider) or None
 
 
@@ -174,13 +175,19 @@ class InferenceClient:
 
             latency_ms = int((time.monotonic() - started) * 1000)
             usage = response.usage
-            # litellm.completion_cost returns None for models it has no
-            # pricing map entry for (e.g. self-hosted Ollama/vLLM) — those
-            # are $0 by definition (CLAUDE.md's #1 constraint), not unknown.
-            cost_usd = (
-                litellm.completion_cost(completion_response=response)  # type: ignore[attr-defined]
-                or 0.0
-            )
+            # litellm.completion_cost is inconsistent for models outside its
+            # pricing map (e.g. any custom `openai/<name>` string used by our
+            # self-hosted/NVIDIA-cloud profiles): it returns None for some,
+            # but raises NotFoundError for others (confirmed against a real
+            # NVIDIA-cloud response). Either way, no registry pricing entry
+            # means $0 by definition (CLAUDE.md's #1 constraint), not unknown.
+            try:
+                cost_usd = (
+                    litellm.completion_cost(completion_response=response)  # type: ignore[attr-defined]
+                    or 0.0
+                )
+            except litellm.exceptions.NotFoundError:
+                cost_usd = 0.0
             return InferenceResult(
                 content=response.choices[0].message.content or "",
                 model_profile=profile.name,

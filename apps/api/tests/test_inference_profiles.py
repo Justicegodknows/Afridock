@@ -9,6 +9,7 @@ def test_default_registry_loads_expected_profiles() -> None:
     assert registry.default_chain == [
         "llama-3.1-70b-nim",
         "llama-3.2-1b-instruct",
+        "llama-3.3-70b-nvidia",
         "llama-3.1-8b-instruct",
         "mixtral-8x7b-instruct",
         "claude-fallback",
@@ -20,6 +21,11 @@ def test_default_registry_loads_expected_profiles() -> None:
     assert registry.get("llama-3.1-70b-nim").is_commercial is False
     assert registry.get("llama-3.2-1b-instruct").provider == "ollama"
     assert registry.get("llama-3.2-1b-instruct").is_commercial is False
+    # NVIDIA's *hosted* cloud API catalog — not self-hosted, but still an
+    # open-weight model, so treated like the Hugging-Face-hosted entries
+    # (not is_commercial) rather than gated behind allow_commercial_fallback.
+    assert registry.get("llama-3.3-70b-nvidia").provider == "nvidia_cloud"
+    assert registry.get("llama-3.3-70b-nvidia").is_commercial is False
     assert registry.get("claude-fallback").is_commercial is True
 
 
