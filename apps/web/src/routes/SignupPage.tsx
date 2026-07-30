@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { Button } from "../components/ui/button";
 import { ApiError } from "../lib/api/http";
-import { signup } from "../services/auth";
+import { login, requestDevVerificationToken, signup, verifyEmail } from "../services/auth";
 
 const signupSchema = z.object({
   organizationName: z.string().min(1, "Enter your organization's name"),
@@ -53,6 +53,17 @@ export function SignupPage() {
     setFormError(null);
     try {
       await signup(values);
+      // Local dev has no SMTP provider configured yet (see
+      // api/routes/auth.py's dev_verification_token) — that endpoint 404s
+      // outside API_ENV=local, so this falls through to the "check your
+      // email" screen below for any real deployment.
+      const token = await requestDevVerificationToken(values.email);
+      if (token) {
+        await verifyEmail(token);
+        await login({ email: values.email, password: values.password });
+        window.location.href = "/chat";
+        return;
+      }
       setSignedUp(true);
     } catch (error) {
       setFormError(friendlyError(error));
@@ -65,9 +76,8 @@ export function SignupPage() {
         <div className="w-full max-w-sm rounded-md border border-divider bg-surface p-6 text-center shadow-md">
           <div className="font-heading text-xl font-semibold">Check your verification link</div>
           <p className="mt-2 text-sm text-text-muted">
-            Your workspace was created. No email provider is configured in local dev yet, so ask
-            whoever runs the API server to check its logs for your verification link
-            (<code>auth.verification_link</code>) before you can sign in.
+            Your workspace was created. Check your email for a verification link before you can
+            sign in.
           </p>
           <Link to="/login" className="mt-4 inline-block text-sm text-accent underline">
             Go to sign in

@@ -70,3 +70,25 @@ export async function login(input: { email: string; password: string }): Promise
 export async function logout(): Promise<void> {
   await http.post<void>("/auth/cookie/logout");
 }
+
+/**
+ * Local-dev-only convenience (see api/routes/auth.py's dev_verification_token
+ * — 404s outside API_ENV=local): mints a verification token directly instead
+ * of requiring log access to the API server. Returns null on 404 so callers
+ * can fall back to the "check your email" copy for any real deployment.
+ */
+export async function requestDevVerificationToken(email: string): Promise<string | null> {
+  try {
+    const body = await http.post<{ token: string }>("/auth/dev/verification-token", { email });
+    return body.token;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function verifyEmail(token: string): Promise<void> {
+  await http.post<void>("/auth/verify", { token });
+}

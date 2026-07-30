@@ -16,7 +16,7 @@ Three deterministic checks back this policy; none rely on an agent choosing to c
 
 **Phase: 0 (complete) → Phase 1 — Core MVP (E1–E4 complete) → Phase 2 — Governance (foundational slice: low-cost-AI constraint, E5, E6 complete)**
 
-Last updated: 2026-07-24 (Phase 2 foundational slice: low-cost-open-source-AI constraint, E5 RBAC/API Keys, E6 Audit/Cost; + self-hosted NVIDIA NIM inference profile)
+Last updated: 2026-07-24 (Phase 2 foundational slice: low-cost-open-source-AI constraint, E5 RBAC/API Keys, E6 Audit/Cost; + self-hosted NVIDIA NIM inference profile; + local-dev signup auto-verify fix)
 
 ## Completed
 
@@ -107,6 +107,13 @@ User directive: add `NVIDIA_NIM_API_KEY`/`NVIDIA_NIM_BASE_URL` (a DGX Spark box)
 - [x] Left `NVIDIA_NIM_API_KEY`/`NVIDIA_NIM_BASE_URL` **commented out** in the real (gitignored) `.env`, blank in `.env.example`: a non-empty placeholder URL there would count as "configured" and every chat request would try (and fail/timeout against) an unreachable host before falling back to Ollama — uncomment with the real DGX Spark address once that NIM container is actually reachable.
 - [x] 3 new unit tests (`test_inference_client.py`): NIM profile is unconfigured when the base URL is blank, becomes configured once set, and confirms Ollama's static `api_base` is unaffected by the new dynamic-resolution path. 45 backend tests total, ruff/black/mypy clean.
 
+### Local-dev signup friction fix: auto-verify via a dev-only token endpoint (2026-07-24)
+User hit the "check the API server's logs for your verification link" message while signing up in the browser and asked to fix it — real friction with no informational value, since a real end user already knows local dev has no email provider.
+
+- [x] New `POST /auth/dev/verification-token` (`api/routes/auth.py`, `include_in_schema=False`): given an email, mints the exact same verification JWT `UserManager.request_verify` would (same secret/audience/lifetime, read off `UserManager` rather than hardcoded, so it can't drift), and returns it directly instead of only logging it. **404s outside `API_ENV=local`** so this endpoint never exists in a real deployment; also 404 for an unknown email and 400 for an already-verified user. Reuses the existing `/auth/verify` route rather than a bespoke auto-verify path, so the exact same code path a real email click-through would hit still runs.
+- [x] `SignupPage.tsx` now calls this endpoint right after registering; if it returns a token (local dev), the page verifies it, logs the user in, and redirects straight to `/chat/:id` — zero manual steps. If it 404s (any real deployment), falls back to the pre-existing "check your verification link" screen, with its copy changed from "ask whoever runs the API server to check its logs" to "check your email for a verification link" (the log-digging instruction was local-dev-specific and wrong to show in a real deployment context).
+- [x] Verified for real: 4 new backend pytest tests (token round-trips through `/auth/verify`, 404 unknown email, 400 already-verified, 404 when `API_ENV` isn't `local`) — 49 backend tests total. Playwright confirmed the full browser flow (signup → lands directly on a live `/chat/:id` session, no manual verification step), zero console errors.
+
 ## In progress
 
 _(nothing — claim work here before starting it)_
@@ -157,6 +164,7 @@ Record any decision that deviates from or refines the execution plan.
 | 2026-07-24 | slowapi's rate limiter is disabled for the whole pytest session (`conftest.py` autouse fixture), not scoped down in production | This pass's new tests pushed the suite's own auth traffic over the global `60/minute` limit, causing non-deterministic failures depending on wall-clock timing — tests exercising real auth flows repeatedly should never be throttled by a production safety limit; scoping the *production* limit to `/auth/*` specifically remains a separate, still-deferred item |
 | 2026-07-24 | Self-hosted NVIDIA NIM (`llama-3.1-70b-nim`) treated as free/self-hosted (like Ollama/vLLM), not `is_commercial`, and placed first in `default_chain` | User's own DGX Spark hardware — zero marginal per-token cost, so it doesn't need `allow_commercial_fallback` consent; a full 70B on dedicated hardware is a better default than the in-container 1B Ollama model when reachable |
 | 2026-07-24 | NIM's `api_base` is resolved dynamically from `Settings` (`_api_base_for()`) rather than hardcoded in `profiles.yaml` like Ollama's | Ollama's endpoint is a fixed Docker Compose service hostname; a DGX Spark's address varies per deployment/machine, so it has to come from env config, not a checked-in file |
+| 2026-07-24 | Added a `POST /auth/dev/verification-token` endpoint (undocumented, `API_ENV=local`-gated) that mints and returns a real verification JWT, rather than auto-verifying users server-side or exposing the structlog line some other way | Auto-verifying would silently bypass the tested "login rejected until verified" contract (`test_login_is_rejected_until_verified_then_succeeds`) for every signup, even ones a future test wants to exercise unverified; minting-and-returning the same token instead keeps that contract intact while removing the friction only for the interactive local-dev signup path |
 
 ## Known issues / blockers
 
