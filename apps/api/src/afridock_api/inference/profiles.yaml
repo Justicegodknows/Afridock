@@ -4,16 +4,19 @@
 # URL) live in the model_profile_override table, not here.
 
 profiles:
-  # Self-hosted NVIDIA NIM instance (e.g. a DGX Spark box) serving a full-size
-  # Llama 3.1 70B over an OpenAI-compatible API. `api_base` is intentionally
+  # Self-hosted NVIDIA NIM instance (a DGX Spark box on the LAN) serving
+  # Llama 3.1 8B over an OpenAI-compatible API — confirmed via a live
+  # GET /v1/models call against the running NIM server (it does NOT serve
+  # 70B, despite this profile's original name/model string; corrected after
+  # the box's address was actually wired in). `api_base` is intentionally
   # omitted here (unlike Ollama's fixed Docker Compose hostname, a NIM box's
   # address is per-deployment) — inference/client.py resolves it dynamically
   # from NVIDIA_NIM_BASE_URL/NVIDIA_NIM_API_KEY. Zero marginal per-token cost
-  # since it's your own hardware, so this is first in the chain: bigger model,
-  # still free, still CLAUDE.md's #1 constraint.
-  llama-3.1-70b-nim:
+  # since it's your own hardware, so this is first in the chain, still free,
+  # still CLAUDE.md's #1 constraint.
+  llama-3.1-8b-nim:
     provider: nvidia_nim
-    litellm_model: openai/meta/llama-3.1-70b-instruct
+    litellm_model: openai/meta/llama-3.1-8b-instruct
     input_cost_per_1k_tokens: 0.0
     output_cost_per_1k_tokens: 0.0
     default_params:
@@ -36,7 +39,7 @@ profiles:
 
   # NVIDIA's hosted API catalog (integrate.api.nvidia.com) — an
   # OpenAI-compatible cloud endpoint NVIDIA runs itself, not your hardware
-  # (contrast with `llama-3.1-70b-nim` above). `api_base` is NVIDIA's fixed
+  # (contrast with `llama-3.1-8b-nim` above). `api_base` is NVIDIA's fixed
   # public endpoint (same for everyone), so unlike the DGX Spark profile it
   # can be hardcoded here rather than resolved from settings; only the API
   # key is per-deployment (NVIDIA_API_KEY). Priced $0 for consistency with
@@ -110,7 +113,7 @@ profiles:
 # and even reaching `claude-fallback` requires the organization to have
 # opted in via `allow_commercial_fallback` (see inference/fallback.py).
 default_chain:
-  - llama-3.1-70b-nim
+  - llama-3.1-8b-nim
   - llama-3.2-1b-instruct
   - llama-3.3-70b-nvidia
   - llama-3.1-8b-instruct

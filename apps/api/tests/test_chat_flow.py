@@ -2,36 +2,18 @@
 E4 (history & search) against the real endpoint, real Postgres, and the
 inference stub-fallback path.
 
-This deliberately forces stub mode (`SELF_HOSTED_PROVIDERS = set()` +
-blanked cloud-provider keys) rather than relying on whatever the
-environment's actual state is: a real Ollama container is genuinely
-reachable in local dev/CI now (see CLAUDE.md's #1 constraint), and a real
-NVIDIA_API_KEY/HF token may be configured too, so without this override the
-assistant's reply would be a real, non-deterministic completion instead of
-the canned stub text this test asserts on — this test is about the SSE
-envelope/persistence plumbing, not about which model answered.
+Stub mode is guaranteed session-wide by conftest.py's
+`_no_real_inference_credentials` autouse fixture — without it, a real
+Ollama container, DGX Spark NIM box, NVIDIA hosted catalog, or HF token
+configured in a developer's real `.env` would make the assistant's reply a
+real, non-deterministic completion instead of the canned stub text this
+test asserts on. This test is about the SSE envelope/persistence plumbing,
+not about which model answered.
 """
 
 import httpx
-import pytest
 
 from tests.conftest import signup_verify_login
-
-
-@pytest.fixture(autouse=True)
-def _force_stub_mode(monkeypatch: pytest.MonkeyPatch) -> None:
-    from afridock_api import config
-
-    monkeypatch.setattr("afridock_api.inference.client.SELF_HOSTED_PROVIDERS", set())
-    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "")
-    monkeypatch.setenv("OPENAI_API_KEY", "")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
-    monkeypatch.setenv("NVIDIA_NIM_API_KEY", "")
-    monkeypatch.setenv("NVIDIA_NIM_BASE_URL", "")
-    monkeypatch.setenv("NVIDIA_API_KEY", "")
-    config.get_settings.cache_clear()
-    yield
-    config.get_settings.cache_clear()
 
 
 async def test_send_message_streams_and_persists_the_conversation(

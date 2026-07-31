@@ -1,4 +1,5 @@
 import asyncio
+import os
 import uuid
 from collections.abc import AsyncIterator, Iterator
 
@@ -10,6 +11,51 @@ from fastapi.testclient import TestClient
 from fastapi_users.jwt import generate_jwt
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+
+_PROVIDER_CREDENTIAL_ENV_VARS = [
+    "HUGGINGFACE_API_TOKEN",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "NVIDIA_NIM_API_KEY",
+    "NVIDIA_NIM_BASE_URL",
+    "NVIDIA_API_KEY",
+]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _no_real_inference_credentials() -> Iterator[None]:
+    """The pytest suite must never make a real network call to an LLM
+    provider — chat/completion tests assert on deterministic stub content or
+    controlled mocks, not live model output. A developer's real `.env` may
+    have genuine credentials configured (Ollama, a DGX Spark NIM box,
+    NVIDIA's hosted catalog, HF, ...) for manual testing outside pytest —
+    found the hard way when a real HUGGINGFACE_API_TOKEN in `.env` made
+    `test_usage_and_audit.py` attempt (and fail) a real network call. Blanks
+    every cloud-provider credential for the whole session regardless, and
+    also empties `SELF_HOSTED_PROVIDERS` so Ollama's always-present static
+    `api_base` (a fixed Docker Compose hostname, unaffected by any env var)
+    is likewise treated as unconfigured, matching the same trick
+    `test_chat_flow.py` used before this was centralized here."""
+    from afridock_api import config
+    from afridock_api.inference import client as inference_client
+
+    originals = {key: os.environ.get(key) for key in _PROVIDER_CREDENTIAL_ENV_VARS}
+    for key in _PROVIDER_CREDENTIAL_ENV_VARS:
+        os.environ[key] = ""
+    config.get_settings.cache_clear()
+
+    original_self_hosted_providers = inference_client.SELF_HOSTED_PROVIDERS
+    inference_client.SELF_HOSTED_PROVIDERS = set()
+
+    yield
+
+    inference_client.SELF_HOSTED_PROVIDERS = original_self_hosted_providers
+    for key, value in originals.items():
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+    config.get_settings.cache_clear()
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -249,12 +249,38 @@ class InferenceClient:
                 last_error = InferenceConnectionError(str(exc))
                 continue
 
-            result.model_profile = profile.name
-            result.litellm_model = profile.litellm_model
-            async for chunk in response:
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    yield delta
-            return
+            # Some providers (confirmed for litellm's Hugging Face backend)
+            # defer the actual network connection to the first chunk fetched
+            # from this async generator, not to the `acompletion()` call
+            # above — a connection failure there raises *after* this point,
+            # and can be a raw, litellm-unnormalized exception (e.g.
+            # httpx.ConnectError) rather than one of the typed exceptions
+            # above. Falling back is still correct here (matches this
+            # method's documented "before the first token" contract) as long
+            # as nothing has reached the client yet; only re-raise once at
+            # least one token has actually been yielded.
+            yielded_any_content = False
+            try:
+                async for chunk in response:
+                    delta = chunk.choices[0].delta.content
+                    if delta:
+                        yielded_any_content = True
+                        result.model_profile = profile.name
+                        result.litellm_model = profile.litellm_model
+                        yield delta
+                if yielded_any_content:
+                    return
+                # Exhausted with no content and no error (e.g. an
+                # immediately-empty stream) — treat like a connection
+                # failure and try the next candidate rather than silently
+                # persisting an attributed-but-empty assistant message.
+                last_error = InferenceConnectionError(f"{profile.name} returned no content")
+                continue
+            except Exception as exc:
+                if yielded_any_content:
+                    raise
+                chain.cooldown(profile.name, CONNECTION_ERROR_COOLDOWN_SECONDS)
+                last_error = InferenceConnectionError(str(exc))
+                continue
 
         raise last_error or NoAvailableModelError("no candidates available and no error captured")

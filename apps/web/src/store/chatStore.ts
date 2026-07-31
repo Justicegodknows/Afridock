@@ -38,7 +38,12 @@ export const useChatStore = create<ChatState>()(
   immer((set) => ({
     messages: [],
     isResponding: false,
-    selectedModelProfile: "llama-3.1-8b-instruct",
+    // Ollama, not a specific-deployment box (e.g. a DGX Spark) or a
+    // cloud-hosted provider — the one self-hosted option every deployment
+    // of this stack actually has out of the box, matching CLAUDE.md's #1
+    // constraint and the plan's own "self-hosted dev runs a real self-hosted
+    // Ollama model" architecture note.
+    selectedModelProfile: "llama-3.2-1b-instruct",
 
     addMessage: (message) =>
       set((state) => {

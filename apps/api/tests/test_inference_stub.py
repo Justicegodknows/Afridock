@@ -1,4 +1,3 @@
-import pytest
 from afridock_api.inference.client import (
     STUB_LITELLM_MODEL,
     STUB_MODEL_PROFILE,
@@ -7,20 +6,10 @@ from afridock_api.inference.client import (
 )
 from afridock_api.inference.fallback import FallbackChain
 
-
-@pytest.fixture(autouse=True)
-def _no_provider_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every test in this module assumes local-dev stub mode (no credentials
-    configured) — matches CI/fresh-clone defaults, not whatever happens to be
-    in a developer's real .env."""
-    from afridock_api import config
-
-    config.get_settings.cache_clear()
-    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "")
-    monkeypatch.setenv("OPENAI_API_KEY", "")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
-    yield
-    config.get_settings.cache_clear()
+# Every test in this module assumes local-dev stub mode (no credentials
+# configured) — guaranteed session-wide by conftest.py's
+# `_no_real_inference_credentials` autouse fixture, not whatever happens to
+# be in a developer's real .env.
 
 
 async def test_complete_returns_stub_response_when_no_credentials_configured() -> None:
